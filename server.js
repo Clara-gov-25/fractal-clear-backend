@@ -205,13 +205,21 @@ app.post("/api/resolve", async (req, res) => {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-sonnet-5",
         max_tokens: 1000,
         system: RULES,
         messages: [{ role: "user", content: prompt }]
       })
     });
     const data = await response.json();
+    if (!response.ok) {
+      console.error("Anthropic API error:", JSON.stringify(data));
+      return res.status(200).json({
+        decision: "API error", driver_signal: "—", ar_audit_note: "—",
+        confidence: "—",
+        reasoning: `Anthropic API returned an error: ${data?.error?.message || JSON.stringify(data).slice(0, 300)}`
+      });
+    }
     const textBlock = (data.content || []).find(b => b.type === "text");
     let parsed;
     try {
@@ -219,7 +227,7 @@ app.post("/api/resolve", async (req, res) => {
     } catch (e) {
       parsed = {
         decision: "See reasoning", driver_signal: "—", ar_audit_note: "—",
-        confidence: "—", reasoning: textBlock ? textBlock.text : "No response returned."
+        confidence: "—", reasoning: textBlock ? textBlock.text : "Model responded but sent no text content — check server logs for the raw response."
       };
     }
     res.json(parsed);
